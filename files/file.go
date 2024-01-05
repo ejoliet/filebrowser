@@ -22,6 +22,8 @@ import (
 
 	"github.com/filebrowser/filebrowser/v2/errors"
 	"github.com/filebrowser/filebrowser/v2/rules"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 const PermFile = 0664
@@ -43,6 +45,7 @@ type FileInfo struct {
 	Subtitles  []string          `json:"subtitles,omitempty"`
 	Content    string            `json:"content,omitempty"`
 	Checksums  map[string]string `json:"checksums,omitempty"`
+	S3presignedurl map[string]string `json:"checksums,omitempty"`
 	Token      string            `json:"token,omitempty"`
 	currentDir []os.FileInfo     `json:"-"`
 	Resolution *ImageResolution  `json:"resolution,omitempty"`
@@ -182,6 +185,8 @@ func (i *FileInfo) Checksum(algo string) error {
 	case "sha256":
 		h = sha256.New()
 	case "sha512":
+		h = sha512.New()
+	case "s3url":
 		h = sha512.New()
 	default:
 		return errors.ErrInvalidOption

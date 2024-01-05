@@ -69,6 +69,14 @@
             }}</a></code
           >
         </p>
+        <p>
+          <strong>S3 Presigned URL: </strong
+          ><code
+            ><a @click="s3presigned($event, 's3url')">{{
+              $t("prompts.show")
+            }}</a></code
+          >
+        </p>
       </template>
     </div>
 
@@ -160,6 +168,25 @@ export default {
 
       try {
         const hash = await api.checksum(link, algo);
+        // eslint-disable-next-line
+        event.target.innerHTML = hash;
+      } catch (e) {
+        this.$showError(e);
+      }
+    },
+    s3presigned: async function (event, algo) {
+      event.preventDefault();
+
+      let link;
+
+      if (this.selectedCount) {
+        link = this.req.items[this.selected[0]].url;
+      } else {
+        link = this.$route.path;
+      }
+
+      try {
+        const hash = await api.s3presignedurl(link, algo);
         // eslint-disable-next-line
         event.target.innerHTML = hash;
       } catch (e) {

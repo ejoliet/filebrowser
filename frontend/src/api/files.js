@@ -163,6 +163,11 @@ export async function checksum(url, algo) {
   return (await data.json()).checksums[algo];
 }
 
+export async function s3presignedurl(url, algo) {
+  const data = await resourceAction(`${url}?s3presignedurl=${algo}`, "GET");
+  return (await data.json()).checksums[algo];
+}
+
 export function getDownloadURL(file, inline) {
   const params = {
     ...(inline && { inline: "true" }),

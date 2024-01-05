@@ -51,6 +51,18 @@ var resourceGetHandler = withUser(func(w http.ResponseWriter, r *http.Request, d
 		file.Content = ""
 	}
 
+	if s3presignedurl := r.URL.Query().Get("s3presignedurl"); s3presignedurl != "" {
+		err := file.Checksum(s3presignedurl)
+		if err == errors.ErrInvalidOption {
+			return http.StatusBadRequest, nil
+		} else if err != nil {
+			return http.StatusInternalServerError, err
+		}
+
+		// do not waste bandwidth if we just want the checksum
+		file.Content = ""
+	}
+
 	return renderJSON(w, r, file)
 })
 
