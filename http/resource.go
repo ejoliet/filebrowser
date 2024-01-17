@@ -52,7 +52,7 @@ var resourceGetHandler = withUser(func(w http.ResponseWriter, r *http.Request, d
 	}
 
 	if s3presignedurl := r.URL.Query().Get("s3presignedurl"); s3presignedurl != "" {
-		err := file.Checksum(s3presignedurl)
+		err := file.S3PresignedURL(s3presignedurl)
 		if err == errors.ErrInvalidOption {
 			return http.StatusBadRequest, nil
 		} else if err != nil {

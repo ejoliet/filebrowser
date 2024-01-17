@@ -20,10 +20,13 @@ import (
 
 	"github.com/spf13/afero"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/filebrowser/filebrowser/v2/errors"
 	"github.com/filebrowser/filebrowser/v2/rules"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+
+	//"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/service/s3"
 )
 
 const PermFile = 0664
@@ -45,7 +48,7 @@ type FileInfo struct {
 	Subtitles  []string          `json:"subtitles,omitempty"`
 	Content    string            `json:"content,omitempty"`
 	Checksums  map[string]string `json:"checksums,omitempty"`
-	S3presignedurl map[string]string `json:"checksums,omitempty"`
+	S3url      string            `json:"s3url,omitempty"`
 	Token      string            `json:"token,omitempty"`
 	currentDir []os.FileInfo     `json:"-"`
 	Resolution *ImageResolution  `json:"resolution,omitempty"`
@@ -157,6 +160,65 @@ func stat(opts FileOptions) (*FileInfo, error) {
 	return file, nil
 }
 
+func presignedURL(s3Path string) string {
+	// Assume the S3 path is in the format "bucket/key"
+	parts := strings.SplitN(s3Path, "/", 2)
+	if len(parts) != 2 {
+		log.Println("invalid S3 path; expected format 'bucket/key'")
+	}
+	bucket, key := parts[0], parts[1]
+	log.Println(s3Path)
+	//if running in EC2, Go will take credentials from IAM role directly, n need to setup env variable
+	// Initialize a session using the default credential provider chain
+	// sess, err := session.NewSession()
+
+	//for testing locally or using sets of access key and secrets, use the expanded configuration to set individual keys
+	sess, err := session.NewSession(&aws.Config{
+		//Region:      aws.String("us-east-1"),
+		//Credentials: credentials.NewStaticCredentials(awsAccessKeyID, awsSecretAccessKey, awsToken),
+		LogLevel: aws.LogLevel(aws.LogDebugWithHTTPBody),
+	})
+
+	if err != nil {
+		log.Println(err)
+	}
+	svc := s3.New(sess)
+
+	req, _ := svc.GetObjectRequest(&s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+
+	urlStr, err := req.Presign(15 * time.Minute)
+
+	if err != nil {
+		log.Println("Failed to sign request", err)
+	}
+	log.Println("The s3 presigned URL is", urlStr)
+	return urlStr
+}
+
+// func getPresignURL(cfg aws.Config) string {
+func getPresignURL() string {
+	return presignedURL("ejoliet-test1/test.txt")
+}
+
+func (i *FileInfo) S3PresignedURL(key string) error {
+	if i.IsDir {
+		return errors.ErrIsDirectory
+	}
+
+	log.Println("Key:" + i.Path)
+	i.S3url = "No URL presigned"
+
+	bucket := os.Getenv("S3_BUCKET")
+	if bucket == "" {
+		bucket = "ejoliet-test1"
+	}
+	i.S3url = presignedURL(bucket + i.Path) // starts with trailing slash "/" already
+	return nil
+}
+
 // Checksum checksums a given File for a given User, using a specific
 // algorithm. The checksums data is saved on File object.
 func (i *FileInfo) Checksum(algo string) error {
@@ -186,8 +248,6 @@ func (i *FileInfo) Checksum(algo string) error {
 		h = sha256.New()
 	case "sha512":
 		h = sha512.New()
-	case "s3url":
-		h = sha512.New()
 	default:
 		return errors.ErrInvalidOption
 	}
@@ -198,6 +258,7 @@ func (i *FileInfo) Checksum(algo string) error {
 	}
 
 	i.Checksums[algo] = hex.EncodeToString(h.Sum(nil))
+
 	return nil
 }
 

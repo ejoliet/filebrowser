@@ -72,7 +72,7 @@
         <p>
           <strong>S3 Presigned URL: </strong
           ><code
-            ><a @click="s3presigned($event, 's3url')">{{
+            ><a @click="s3presigned($event)">{{
               $t("prompts.show")
             }}</a></code
           >
@@ -174,7 +174,7 @@ export default {
         this.$showError(e);
       }
     },
-    s3presigned: async function (event, algo) {
+    s3presigned: async function (event) {
       event.preventDefault();
 
       let link;
@@ -186,7 +186,7 @@ export default {
       }
 
       try {
-        const hash = await api.s3presignedurl(link, algo);
+        const hash = await api.s3presignedurl(link);
         // eslint-disable-next-line
         event.target.innerHTML = hash;
       } catch (e) {
